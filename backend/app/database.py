@@ -1,38 +1,84 @@
-# app/database.py
 import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient
+from typing import Optional
+import logging
 from dotenv import load_dotenv
 
 load_dotenv()
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "matchwise")
+logger = logging.getLogger(__name__)
 
-# Async client for Motor (async operations)
-async_client = None
-database = None
+class Database:
+    client: Optional[AsyncIOMotorClient] = None
+    database = None
+
+db = Database()
 
 async def get_database():
-    global async_client, database
-    if async_client is None:
-        async_client = AsyncIOMotorClient(MONGODB_URL)
-        database = async_client[DATABASE_NAME]
-    return database
 
-# Sync client for regular operations (if needed)
-sync_client = None
-sync_database = None
+    if db.database is None:
+        await connect_to_database()
+    return db.database
 
-def get_sync_database():
-    global sync_client, sync_database
-    if sync_client is None:
-        sync_client = MongoClient(MONGODB_URL)
-        sync_database = sync_client[DATABASE_NAME]
-    return sync_database
+async def connect_to_database():
 
-async def close_database():
-    global async_client
-    if async_client:
-        async_client.close()
-        async_client = None
+    try:
+        # Get MongoDB connection string from environment
+        mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+        database_name = os.getenv("DATABASE_NAME", "matchwise")
+        
+        logger.info(f"Connecting to MongoDB at {mongodb_url}")
+        
+        # Create motor client
+        db.client = AsyncIOMotorClient(mongodb_url)
+        
+        # Get database
+        db.database = db.client[database_name]
+        
+        # Test connection
+        await db.database.command("ping")
+        
+        logger.info(f"Successfully connected to MongoDB database: {database_name}")
+        
+        # Create indexes
+        await create_indexes()
+        
+    except Exception as e:
+        logger.error(f"Failed to connect to MongoDB: {e}")
+        raise
+
+async def close_database_connection():
+
+    try:
+        if db.client:
+            db.client.close()
+            logger.info("MongoDB connection closed")
+    except Exception as e:
+        logger.error(f"Error closing MongoDB connection: {e}")
+
+async def create_indexes():
+
+    try:
+        # Users collection indexes
+        users_collection = db.database.users
+        await users_collection.create_index("email", unique=True)
+        await users_collection.create_index("role")
+        await users_collection.create_index("is_active")
+        
+        # Compound index for recruiter searches
+        await users_collection.create_index([("role", 1), ("company", 1)])
+        
+        # Compound index for job seeker searches
+        await users_collection.create_index([("role", 1), ("skills", 1)])
+        
+        # Match results collection indexes
+        match_results_collection = db.database.match_results
+        await match_results_collection.create_index("application_id")
+        await match_results_collection.create_index("job_id")
+        await match_results_collection.create_index("user_id")
+        await match_results_collection.create_index([("job_id", 1), ("overall_score", -1)])
+        
+        logger.info("Database indexes created successfully")
+        
+    except Exception as e:
+        logger.error(f"Error creating indexes: {e}")

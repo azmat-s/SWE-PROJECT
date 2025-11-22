@@ -23,7 +23,6 @@ async def get_database():
 async def connect_to_database():
 
     try:
-        # Get MongoDB connection string from environment
         mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
         database_name = os.getenv("DATABASE_NAME", "matchwise")
         

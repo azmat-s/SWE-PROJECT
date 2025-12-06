@@ -15,6 +15,10 @@ class JobStatus(str, Enum):
     HIRING = "HIRING"
     EXPIRED = "EXPIRED"
 
+class JobQuestion(BaseModel):
+    questionNo: int
+    question: str
+
 class JobCreateRequest(BaseModel):
     recruiter_id: str
     title: str
@@ -26,6 +30,7 @@ class JobCreateRequest(BaseModel):
     end_date: Optional[date] = None
     skills_required: List[str]
     status: JobStatus = JobStatus.OPEN
+    questions: List[JobQuestion] = []
 
 class JobUpdateStatusRequest(BaseModel):
     job_id: str
@@ -45,3 +50,10 @@ class JobResponse(BaseModel):
     status: JobStatus
     created_at: str
     updated_at: str
+    questions: List[JobQuestion]
+
+class FilterRequest(BaseModel):
+    title: Optional[str] = None
+    keyword: Optional[str] = None
+    type: Optional[str] = None
+    skills: Optional[List[str]] = None

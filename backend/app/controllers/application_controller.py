@@ -1,57 +1,79 @@
-from fastapi import APIRouter, HTTPException
-from app.schemas.application_schema import (
-    ApplicationCreateRequest,
-    ApplicationStatusUpdateRequest
-)
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi.responses import StreamingResponse
 from app.services.application_service import ApplicationService
-from app.services.user_service import UserService
+from app.services.job_service import JobService
 from app.utils.response import api_response
+import json
+import io
 
 router = APIRouter(prefix="/applications", tags=["Applications"])
 
-
 @router.post("/")
-async def create_application(payload: ApplicationCreateRequest):
-    payload.validate_status()
+async def create_application(
+    job_id: str = Form(...),
+    jobseeker_id: str = Form(...),
+    answers: str = Form(...),
+    application_status: str = Form(...),
+    resume: UploadFile = File(...)
+):
+    try:
+        answers_list = json.loads(answers)
+    except Exception:
+        raise HTTPException(400, "Invalid answers JSON")
 
-    user = await UserService.get_user_by_id(payload.jobseeker_id)
+    job = await JobService.get_job_by_id(job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
 
-    if not user or user["role"] != "jobseeker":
-        raise HTTPException(status_code=403, detail="Only jobseekers can apply")
+    job_questions = job.get("questions", [])
 
-    result = await ApplicationService.create_application(payload)
+    if len(answers_list) != len(job_questions):
+        raise HTTPException(400, "Incorrect number of answers")
 
-    if "error" in result:
-        raise HTTPException(status_code=409, detail=result["message"])
+    job_question_numbers = {q["questionNo"] for q in job_questions}
+    payload_question_numbers = {a["questionNo"] for a in answers_list}
 
-    return api_response(201, "Application created", result)
+    if job_question_numbers != payload_question_numbers:
+        raise HTTPException(400, "Question numbers mismatch")
 
-
-
-@router.get("/{job_id}")
-async def get_applications(job_id: str):
-    apps = await ApplicationService.get_applications_by_job(job_id)
-    return api_response(200, "Applications fetched", apps)
-
-
-@router.get("/application/{application_id}")
-async def get_application(application_id: str):
-    app = await ApplicationService.get_application(application_id)
-    if not app:
-        raise HTTPException(status_code=404, detail="Application not found")
-    return api_response(200, "Application fetched", app)
-
-
-@router.patch("/")
-async def update_application_status(payload: ApplicationStatusUpdateRequest):
-    payload.validate_status()
-
-    updated = await ApplicationService.update_application_status(
-        payload.application_id,
-        payload.application_status
+    result = await ApplicationService.create_application(
+        job_id,
+        jobseeker_id,
+        job_questions,
+        answers_list,
+        application_status,
+        resume
     )
 
-    if not updated:
-        raise HTTPException(status_code=404, detail="Application not found")
+    if "error" in result:
+        raise HTTPException(409, result["message"])
 
-    return api_response(200, "Application status updated", updated)
+    return api_response(201, "Application created successfully", result)
+
+@router.post("/preview-score")
+async def preview_score(job_id: str = Form(...), resume: UploadFile = File(...)):
+    try:
+        job = await JobService.get_job_by_id(job_id)
+        if not job:
+            raise HTTPException(404, "Job not found")
+
+        resume_bytes = await resume.read()
+        resume_text = await ApplicationService.extract_text_from_resume(resume_bytes, resume.filename)
+
+        from app.services.matching_strategy import LLMMatchingStrategy
+        match = await LLMMatchingStrategy.generate_match(resume_text, job["description"])
+
+        return api_response(200, "Score generated", match.to_dict())
+
+    except Exception as e:
+        raise HTTPException(500, f"Error generating preview score: {str(e)}")
+
+@router.get("/resume/{file_id}")
+async def get_resume(file_id: str):
+    data, filename, content_type = await ApplicationService.get_resume(file_id)
+
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type=content_type,
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )

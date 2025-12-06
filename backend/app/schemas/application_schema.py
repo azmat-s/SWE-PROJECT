@@ -1,17 +1,19 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List
 
+VALID_STATUSES = {"PENDING", "APPLIED", "UNDER_REVIEW", "INTERVIEWING", "REJECTED"}
 
-VALID_STATUSES = {"APPLIED", "UNDER_REVIEW", "INTERVIEWING", "REJECTED"}
-
+class Answer(BaseModel):
+    questionNo: int
+    answer: str
 
 class ApplicationCreateRequest(BaseModel):
     job_id: str
     jobseeker_id: str
-    questions: List[Dict[str, Any]]  
-    ai_score: int = Field(..., ge=1, le=100)  
-    ai_feedback: str  
-    keyword_score: int = Field(..., ge=1, le=100)  
+    answers: List[Answer]
+    ai_score: int = Field(..., ge=1, le=100)
+    ai_feedback: str
+    keyword_score: int = Field(..., ge=1, le=100)
     application_status: str = Field(...)
 
     def validate_status(self):

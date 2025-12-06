@@ -6,9 +6,20 @@ def convert_date(d):
     return d
 
 class Job:
-    def __init__(self, recruiter_id, title, description, salary, location,
-                 type, start_date, end_date, skills_required, status):
-        
+    def __init__(
+        self,
+        recruiter_id,
+        title,
+        description,
+        salary,
+        location,
+        type,
+        start_date,
+        end_date,
+        skills_required,
+        status,
+        questions=None
+    ):
         self.recruiter_id = recruiter_id
         self.title = title
         self.description = description
@@ -19,6 +30,7 @@ class Job:
         self.end_date = convert_date(end_date)
         self.skills_required = skills_required
         self.status = status
+        self.questions = questions if questions is not None else []  # NEW FIELD
         self.created_at = datetime.utcnow()
         self.updated_at = datetime.utcnow()
 
@@ -34,6 +46,7 @@ class Job:
             "end_date": self.end_date,
             "skills_required": self.skills_required,
             "status": self.status,
+            "questions": self.questions,
             "created_at": self.created_at,
             "updated_at": self.updated_at
         }

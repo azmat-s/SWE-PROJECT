@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { API_ENDPOINTS, APP_CONFIG, apiRequest } from '../config/api'
-import '../styles/login.css'
+import styles from '../styles/login.module.css'
 
 const Login = () => {
   const navigate = useNavigate()
   const [userType, setUserType] = useState<'recruiter' | 'jobseeker'>('recruiter')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,131 +19,115 @@ const Login = () => {
     try {
       const response = await apiRequest(API_ENDPOINTS.LOGIN, {
         method: 'POST',
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       })
 
       const data = await response.json()
+      console.log("LOGIN RESPONSE:", data)
 
-      if (response.ok) {
-        localStorage.setItem('user', JSON.stringify(data.data))
-        localStorage.setItem('userType', userType)
-        
-        if (rememberMe && APP_CONFIG.ENABLE_REMEMBER_ME) {
-          localStorage.setItem('rememberMe', 'true')
+      if (response.ok && data.data) {
+        const backendUser = data.data
+
+        const normalizedUser = {
+          ...backendUser,
+          id: backendUser.id || backendUser._id || backendUser.userId,
         }
 
-        if (userType === 'recruiter') {
-          navigate('/recruiter/dashboard')
+        localStorage.setItem("user", JSON.stringify(normalizedUser))
+        localStorage.setItem("userType", backendUser.role)
+
+        if (backendUser.role === "recruiter") {
+          navigate("/recruiter/dashboard")
         } else {
-          navigate('/jobseeker/dashboard')
+          navigate("/jobseeker/dashboard")
         }
+
       } else {
-        setError(data.message || 'Invalid email or password')
+        setError(data.message || "Invalid email or password")
       }
     } catch (err) {
-      setError('Network error. Please try again.')
+      setError("Network error. Please try again.")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="login-page">
-      <Link to="/" className="back-home-link">
+    <div className={styles.loginPage}>
+      <Link to="/" className={styles.backHomeLink}>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M19 12H5M5 12L12 19M5 12L12 5" />
         </svg>
         Back to Home
       </Link>
-      
-      <div className="login-container">
-        <div className="login-icon">
+
+      <div className={styles.loginContainer}>
+        <div className={styles.loginIcon}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="white">
-            <path d="M20 6H10L8 2H2C1.45 2 1 2.45 1 3V17C1 17.55 1.45 18 2 18H10L12 22H20C20.55 22 21 21.55 21 21V7C21 6.45 20.55 6 20 6Z" />
+            <path d="M20 6H10L8 2H2V18H10L12 22H20V6Z" />
           </svg>
         </div>
-        
-        <h1 className="login-title">{APP_CONFIG.NAME}</h1>
-        <p className="login-subtitle">{APP_CONFIG.TAGLINE}</p>
-        
-        <div className="user-type-toggle">
+
+        <h1 className={styles.loginTitle}>{APP_CONFIG.NAME}</h1>
+        <p className={styles.loginSubtitle}>{APP_CONFIG.TAGLINE}</p>
+
+        <div className={styles.userTypeToggle}>
           <button
-            className={`toggle-option ${userType === 'recruiter' ? 'active' : ''}`}
+            className={`${styles.toggleOption} ${userType === 'recruiter' ? styles.active : ''}`}
             onClick={() => setUserType('recruiter')}
             type="button"
           >
             Recruiter
           </button>
+
           <button
-            className={`toggle-option ${userType === 'jobseeker' ? 'active' : ''}`}
+            className={`${styles.toggleOption} ${userType === 'jobseeker' ? styles.active : ''}`}
             onClick={() => setUserType('jobseeker')}
             type="button"
           >
             Job Seeker
           </button>
         </div>
-        
-        <form onSubmit={handleSubmit} className="login-form">
-          {error && <div className="error-message">{error}</div>}
-          
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
+
+        <form onSubmit={handleSubmit} className={styles.loginForm}>
+          {error && <div className={styles.errorMessage}>{error}</div>}
+
+          <div className={styles.formGroup}>
+            <label>Email</label>
             <input
               type="email"
-              id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
               required
             />
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
+
+          <div className={styles.formGroup}>
+            <label>Password</label>
             <input
               type="password"
-              id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
               required
             />
           </div>
-          
-          {APP_CONFIG.ENABLE_REMEMBER_ME && (
-            <div className="form-options">
-              <label className="checkbox-container">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span>Remember me</span>
-              </label>
-              <Link to="/forgot-password" className="forgot-link">
-                Forgot Password?
-              </Link>
-            </div>
-          )}
-          
+
           <button
             type="submit"
-            className="login-button"
+            className={styles.loginButton}
             disabled={isLoading}
           >
-            {isLoading ? 'Logging in...' : 'Login'}
+            {isLoading ? "Logging in..." : "Login"}
           </button>
         </form>
-        
-        <p className="signup-prompt">
-          Don't have an account? <Link to="/register" className="signup-link">Sign up</Link>
+
+        <p className={styles.signupPrompt}>
+          Don't have an account?{" "}
+          <Link to="/register" className={styles.signupLink}>Sign up</Link>
         </p>
       </div>
     </div>
   )
 }
 
-export default Login
+export default Login;

@@ -1,4 +1,8 @@
 import sys, os
+
+os.environ['JWT_SECRET_KEY'] = 'tHuhfLwlpRbQr4jxfMEj50breVDM_LpQtXsi_p13FKU'
+os.environ['TESTING'] = 'true'  # THIS LINE DISABLES JWT
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest

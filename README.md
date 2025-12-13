@@ -49,7 +49,7 @@ MatchWise acts as an intelligent personal assistant that:
 ### DevOps & Deployment
 - **CI/CD:** GitHub Actions
 - **Containerization:** Docker
-- **Hosting:** Heroku or Vercel
+- **Hosting:** Render and Vercel
 - **Database Hosting:** MongoDB Atlas
 
 ## Features

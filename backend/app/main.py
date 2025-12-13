@@ -1,45 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
-import os
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.controllers.auth_controller import router as auth_router
+from app.controllers.recruiter_controller import router as recruiter_router
+from app.controllers.jobseeker_controller import router as jobseeker_router
+from app.controllers.job_controller import router as job_router
+from app.controllers.application_controller import router as application_router
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+from app.utils.response import api_response
 
-logger = logging.getLogger(__name__)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Starting MatchWise API...")
-    
-    try:
-        from services.llm import initialize_llm_service
-        if os.getenv('HUGGINGFACE_API_KEY') or os.getenv('OPENROUTER_API_KEY'):
-            initialize_llm_service()
-            logger.info("LLM Service initialized")
-        else:
-            logger.warning("No LLM API keys found. LLM features will be disabled.")
-    except Exception as e:
-        logger.error(f"Failed to initialize LLM service: {e}")
-    
-    logger.info("MatchWise API started successfully")
-    
-    yield
-    
-    logger.info("Shutting down MatchWise API...")
-
-app = FastAPI(
-    title="MatchWise API",
-    description="AI-powered job matching platform",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(title="MatchWise", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,36 +19,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from controllers.auth_controller import router as auth_router
-from controllers.llm_controller import router as llm_router
-
+app.include_router(job_router)
 app.include_router(auth_router)
-app.include_router(llm_router)
+app.include_router(recruiter_router)
+app.include_router(jobseeker_router)
+app.include_router(application_router)
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Welcome to MatchWise API",
-        "version": "1.0.0",
-        "documentation": "/docs"
-    }
+    return api_response(200, "MatchWise API is running")
+
 
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "service": "MatchWise API"
-    }
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 8000)),
-        reload=True
-    )
+    return api_response(200, "healthy")
